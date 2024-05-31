@@ -55,9 +55,14 @@ func convertFile(inputFile string, cfg config.Config) {
 	defer csvWriter.Flush()
 
 	first := true
+	columnCount := -1
 	for row := range xl.ReadRows(xl.Sheets[0]) {
 		var record []string
 		for _, cell := range row.Cells {
+			index := cell.ColumnIndex()
+			for len(record) < index {
+				record = append(record, "")
+			}
 			record = append(record, cell.Value)
 		}
 		if first {
@@ -65,6 +70,7 @@ func convertFile(inputFile string, cfg config.Config) {
 			if !cfg.Headers {
 				continue
 			}
+			columnCount = len(record)
 			fileMappings := cfg.FileMappings[filepath.Base(inputFile)]
 			for i, header := range record {
 				if mapped, ok := fileMappings[header]; ok {
@@ -72,6 +78,11 @@ func convertFile(inputFile string, cfg config.Config) {
 				} else if mapped, ok := cfg.GlobalMappings[header]; ok {
 					record[i] = mapped
 				}
+			}
+		}
+		if cfg.Headers {
+			for len(record) < columnCount {
+				record = append(record, "")
 			}
 		}
 		if err := csvWriter.Write(record); err != nil {
